@@ -23,6 +23,14 @@ The app uses:
   Demo recording: data/assets/PaymentDocs_Chatbot.mp4
 </video>
 
+If the video does not load in the GitHub preview, open it directly from:
+
+```text
+data/assets/PaymentDocs_Chatbot.mp4
+```
+
+[Open demo video](data/assets/PaymentDocs_Chatbot.mp4)
+
 ### Screenshots
 
 ![Payment document chatbot role selection](data/assets/Screenshot%202026-08-12%20at%2010.08.20%E2%80%AFAM.png)

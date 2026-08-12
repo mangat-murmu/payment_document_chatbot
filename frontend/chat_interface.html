@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PayDoc AI</title>
+    <style>
+      :root {
+        --ink: #1f1f24;
+        --muted: #686873;
+        --line: #dedee5;
+        --panel: #fff;
+        --sidebar: #f7f7f8;
+        --page: #fff;
+        --brand: #0d8b6d;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--ink);
+        font:
+          14px Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+      button {
+        border: 0;
+        cursor: pointer;
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+      .sidebar {
+        position: sticky;
+        top: 0;
+        align-self: start;
+        height: 100vh;
+        overflow-y: auto;
+        background: var(--sidebar);
+        border-right: 1px solid var(--line);
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 650;
+        padding: 8px;
+      }
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--brand);
+        font-weight: 800;
+        color: #fff;
+      }
+      .new-chat,
+      .side-action {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        width: 100%;
+        padding: 11px 12px;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--ink);
+        text-align: left;
+      }
+      .new-chat {
+        border: 1px solid var(--line);
+      }
+      .new-chat:hover,
+      .side-action:hover,
+      .icon-btn:hover {
+        background: color-mix(in srgb, var(--ink) 9%, transparent);
+      }
+      .side-label {
+        margin: 16px 10px 4px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .side-action small {
+        display: block;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .recent-chats {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        max-height: 250px;
+        overflow-y: auto;
+        padding: 4px 4px 12px;
+        scrollbar-gutter: stable;
+      }
+      .recent-chats[hidden] {
+        display: none;
+      }
+      .recent-chats-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+        width: 100%;
+        margin: 16px 0 4px;
+        padding: 0 6px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .recent-chats-toggle:hover {
+        color: var(--ink);
+      }
+      .recent-chats-toggle-icon {
+        width: 8px;
+        height: 8px;
+        border-right: 2px solid currentColor;
+        border-bottom: 2px solid currentColor;
+        transform: rotate(45deg) translate(-2px, -2px);
+      }
+      .recent-chats-toggle[aria-expanded="false"] .recent-chats-toggle-icon {
+        transform: rotate(-45deg);
+      }
+      .recent-chat {
+        width: 100%;
+        min-width: 0;
+        min-height: 42px;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--ink);
+        padding: 9px 6px;
+        line-height: 20px;
+        text-align: left;
+      }
+      .recent-chat:hover,
+      .recent-chat-row.is-active .recent-chat {
+        background: color-mix(in srgb, var(--ink) 9%, transparent);
+      }
+      .recent-chat-row {
+        position: relative;
+      }
+      .delete-chat {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 120ms ease;
+      }
+      .recent-chat-row:hover .delete-chat,
+      .delete-chat:focus-visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .recent-chat-row:hover .recent-chat {
+        padding-right: 36px;
+      }
+      .delete-chat:hover {
+        background: #fff0ef;
+        color: #b42318;
+      }
+      .recent-chat-title {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 20px;
+      }
+      .sidebar-bottom {
+        margin-top: auto;
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+      }
+      .role-select {
+        width: 100%;
+        color: var(--ink);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px;
+      }
+      .workspace {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        height: 58px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 24px;
+        border-bottom: 1px solid var(--line);
+        background: var(--page);
+      }
+      .chat-title {
+        font-weight: 650;
+      }
+      .subtle {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .icon-btn {
+        background: transparent;
+        color: var(--ink);
+        padding: 8px 10px;
+        border-radius: 7px;
+      }
+      .thread {
+        width: min(820px, 100%);
+        margin: 0 auto;
+        padding: 40px 24px 220px;
+        flex: 1;
+      }
+      .welcome {
+        margin-top: 13vh;
+        text-align: center;
+      }
+      .welcome h1 {
+        font-size: 29px;
+        letter-spacing: -0.5px;
+        margin: 0 0 10px;
+      }
+      .welcome p {
+        color: var(--muted);
+        margin: 0;
+      }
+      .suggestions {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin: 30px auto;
+        max-width: 680px;
+      }
+      .suggestion {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        color: var(--ink);
+        padding: 14px;
+        text-align: left;
+        line-height: 1.35;
+      }
+      .suggestion span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 4px;
+      }
+      .suggestion:hover {
+        background: color-mix(in srgb, var(--ink) 9%, transparent);
+      }
+      .message {
+        display: flex;
+        gap: 14px;
+        margin: 25px 0;
+        line-height: 1.6;
+      }
+      .avatar {
+        width: 29px;
+        height: 29px;
+        flex: 0 0 29px;
+        border-radius: 7px;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 800;
+        background: var(--brand);
+        color: #fff;
+      }
+      .avatar svg {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+      }
+      .avatar.user {
+        background: #44444a;
+        color: #eee;
+      }
+      .message-content {
+        min-width: 0;
+        flex: 1;
+      }
+      .message-body.plain {
+        white-space: pre-wrap;
+      }
+      .message-body.markdown {
+        white-space: normal;
+      }
+      .message-body.markdown > *:first-child {
+        margin-top: 0;
+      }
+      .message-body.markdown > *:last-child {
+        margin-bottom: 0;
+      }
+      .message-body.markdown p,
+      .message-body.markdown ul,
+      .message-body.markdown ol,
+      .message-body.markdown blockquote,
+      .message-body.markdown pre {
+        margin: 0 0 10px;
+      }
+      .message-body.markdown h3,
+      .message-body.markdown h4,
+      .message-body.markdown h5 {
+        margin: 14px 0 7px;
+        line-height: 1.3;
+      }
+      .message-body.markdown ul,
+      .message-body.markdown ol {
+        padding-left: 22px;
+      }
+      .message-body.markdown code {
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: var(--sidebar);
+        padding: 1px 4px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.92em;
+      }
+      .message-body.markdown pre {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--sidebar);
+        padding: 12px;
+      }
+      .message-body.markdown pre code {
+        border: 0;
+        background: transparent;
+        padding: 0;
+      }
+      .message-body.markdown blockquote {
+        border-left: 3px solid var(--line);
+        color: var(--muted);
+        padding-left: 12px;
+      }
+      .message-body.markdown a {
+        color: var(--brand);
+      }
+      .message-meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 5px;
+      }
+      .citations {
+        margin-top: 12px;
+        display: grid;
+        gap: 7px;
+      }
+      .citation {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 7px;
+        max-width: 100%;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--brand);
+        border-radius: 7px;
+        padding: 5px 8px;
+        font-size: 12px;
+      }
+      .citation-title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .citation-meta {
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .citation.is-query {
+        color: var(--ink);
+        background: var(--sidebar);
+      }
+      .citation-download {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        color: var(--brand);
+        text-decoration: none;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .citation:hover .citation-download,
+      .citation-download:focus-visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .citation-download:hover {
+        background: color-mix(in srgb, var(--brand) 12%, transparent);
+      }
+      .composer-wrap {
+        position: fixed;
+        bottom: 0;
+        left: 260px;
+        right: 0;
+        padding: 20px 24px 24px;
+        background: linear-gradient(transparent, var(--page) 32%);
+      }
+      .composer {
+        width: min(820px, 100%);
+        margin: auto;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        padding: 10px 10px 9px;
+        box-shadow: 0 8px 28px #0004;
+      }
+      .composer textarea {
+        display: block;
+        resize: none;
+        width: 100%;
+        min-height: 52px;
+        max-height: 180px;
+        padding: 6px 8px;
+        background: transparent;
+        color: var(--ink);
+        border: 0;
+        outline: 0;
+      }
+      .composer-bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 3px;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .send {
+        border-radius: 8px;
+        background: var(--brand);
+        color: white;
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
+        line-height: 1;
+      }
+      .send:disabled {
+        background: #5b5b61;
+        color: #a4a4aa;
+      }
+      .disclaimer {
+        text-align: center;
+        color: var(--muted);
+        font-size: 11px;
+        margin-top: 9px;
+      }
+      dialog {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--panel);
+        color: var(--ink);
+        padding: 0;
+        width: min(760px, calc(100vw - 32px));
+        box-shadow: 0 20px 80px #000a;
+      }
+      dialog::backdrop {
+        background: #0009;
+      }
+      .modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      .modal-head h2 {
+        font-size: 16px;
+        margin: 0;
+      }
+      .close {
+        color: var(--muted);
+        background: transparent;
+        font-size: 24px;
+        line-height: 1;
+      }
+      .modal-body {
+        padding: 20px;
+      }
+      .field {
+        display: block;
+        margin-bottom: 14px;
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .field input,
+      .field textarea,
+      .field select {
+        width: 100%;
+        margin-top: 6px;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--page);
+        color: var(--ink);
+        font-weight: 400;
+      }
+      .field textarea {
+        min-height: 150px;
+        resize: vertical;
+      }
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 9px;
+        margin-top: 18px;
+      }
+      .secondary {
+        background: color-mix(in srgb, var(--ink) 12%, transparent);
+        color: var(--ink);
+        padding: 9px 13px;
+        border-radius: 8px;
+      }
+      .primary {
+        background: var(--brand);
+        color: white;
+        padding: 9px 13px;
+        border-radius: 8px;
+      }
+      .document-list {
+        max-height: 350px;
+        overflow: auto;
+      }
+      .document-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .select-all-documents {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .select-all-documents input,
+      .doc-select {
+        accent-color: var(--brand);
+      }
+      .doc-row {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 13px 3px;
+        border-bottom: 1px solid var(--line);
+        background: transparent;
+        color: var(--ink);
+        text-align: left;
+      }
+      .doc-row:hover {
+        color: var(--brand);
+      }
+      .doc-row small {
+        color: var(--muted);
+        display: block;
+        margin-top: 3px;
+      }
+      .doc-row small.indexing-error {
+        color: #b42318;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .doc-details {
+        min-width: 0;
+        flex: 1;
+      }
+      .doc-filename {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .doc-select {
+        flex: 0 0 auto;
+        width: 16px;
+        height: 16px;
+      }
+      .delete-document {
+        flex: 0 0 auto;
+        border: 1px solid #c9382c;
+        border-radius: 7px;
+        background: transparent;
+        color: #b42318;
+        padding: 6px 9px;
+        font-size: 12px;
+      }
+      .delete-document:hover:not(:disabled) {
+        background: #fff0ef;
+      }
+      .delete-document:disabled {
+        cursor: wait;
+        opacity: 0.6;
+      }
+      .delete-selected:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+      .indexing-status {
+        flex: 0 0 auto;
+        border-radius: 999px;
+        padding: 4px 7px;
+        font-size: 11px;
+        font-weight: 650;
+      }
+      .indexing-status.is-success {
+        background: #e5f5ed;
+        color: #157347;
+      }
+      .indexing-status.is-failed {
+        background: #fff0ef;
+        color: #b42318;
+      }
+      .indexing-status.is-inprogress {
+        background: #fff4d6;
+        color: #8a5a00;
+      }
+      .doc-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .doc-content {
+        white-space: pre-wrap;
+        max-height: 420px;
+        overflow: auto;
+        background: var(--page);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 13px;
+        line-height: 1.55;
+        font-size: 13px;
+      }
+      .status {
+        min-height: 20px;
+        color: var(--brand);
+        font-size: 12px;
+      }
+      @media (max-width: 720px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+        .sidebar {
+          display: none;
+        }
+        .composer-wrap {
+          left: 0;
+        }
+        .thread {
+          padding: 24px 16px 220px;
+        }
+        .topbar {
+          padding: 0 14px;
+        }
+        .suggestions {
+          grid-template-columns: 1fr;
+        }
+        .welcome {
+          margin-top: 7vh;
+        }
+        .composer-wrap {
+          padding: 14px;
+        }
+        .topbar .subtle {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand"><span class="brand-mark">P</span> PayDoc AI</div>
+        <button class="new-chat" id="new-chat">＋ New chat</button>
+        <p class="side-label">Workspace</p>
+        <button class="side-action" id="open-documents">
+          ▣ <span>Documents<small id="count">Loading documents…</small></span>
+        </button>
+        <button
+          class="recent-chats-toggle"
+          id="toggle-recent-chats"
+          type="button"
+          aria-expanded="true"
+          aria-controls="recent-chats"
+        >
+          Recent chats
+          <span class="recent-chats-toggle-icon" aria-hidden="true"></span>
+        </button>
+        <div class="recent-chats" id="recent-chats"></div>
+        <div class="sidebar-bottom">
+          <label class="subtle" for="role">User Role</label
+          ><select class="role-select" id="role">
+            <option value="product_lead">Product Lead</option>
+            <option value="tech_lead">Tech Lead</option>
+            <option value="compliance_lead">Compliance Lead</option>
+            <option value="bank_alliance_lead">Bank Alliance Lead</option>
+          </select>
+        </div>
+      </aside>
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <span class="chat-title">Payment intelligence</span>
+          </div>
+          <button class="icon-btn" id="save" title="Save current search">
+            ☆ Save
+          </button>
+        </header>
+        <section class="thread" id="thread">
+          <div class="welcome" id="welcome">
+            <h1>How can I help with your payments data?</h1>
+            <p>
+              Answers are restricted to the documents visible to your selected
+              role.
+            </p>
+            <div class="suggestions">
+              <button
+                class="suggestion"
+                data-query="What's the success rate of UPI transactions this month?"
+              >
+                UPI performance<span
+                  >Find transaction success trends</span
+                ></button
+              ><button
+                class="suggestion"
+                data-query="Are there any API integration failures today?"
+              >
+                Integration health<span
+                  >Review API errors and latency</span
+                ></button
+              ><button
+                class="suggestion"
+                data-query="Any suspicious transaction patterns detected?"
+              >
+                Compliance risks<span
+                  >Review audit and KYC indicators</span
+                ></button
+              ><button
+                class="suggestion"
+                data-query="How is our SLA performance with Bank X?"
+              >
+                Bank partnership SLA<span
+                  >Review availability and exceptions</span
+                >
+              </button>
+            </div>
+          </div>
+        </section>
+        <div class="composer-wrap">
+          <div class="composer">
+            <textarea
+              id="query"
+              rows="1"
+              placeholder="Message PayDoc AI…"
+            ></textarea>
+            <div class="composer-bottom">
+              <span class="hint"
+                >Enter to send · Shift + Enter for a new line</span
+              ><button class="send" id="ask" aria-label="Send message">
+                ↑
+              </button>
+            </div>
+          </div>
+          <div class="disclaimer">
+            PayDoc AI can make mistakes. Check the cited source documents.
+          </div>
+        </div>
+      </main>
+    </div>
+    <dialog id="upload-modal">
+      <div class="modal-head">
+        <h2>Upload document</h2>
+        <button class="close" data-close="upload-modal" aria-label="Close">
+          ×
+        </button>
+      </div>
+      <form class="modal-body" id="upload-form">
+        <label class="field"
+          >Document type<select id="type" name="doc_type">
+            <option value="upi_transaction">UPI transaction</option>
+            <option value="bank_api_log">Bank API log</option>
+            <option value="compliance_audit">Compliance audit</option>
+            <option value="partnership_sla">Partnership SLA</option>
+          </select></label
+        ><label class="field"
+          >Document files<input
+            id="content"
+            name="files"
+            type="file"
+            required
+            multiple
+            accept=".pdf,.csv,.json,.jsonl,.txt,application/pdf,text/csv,application/json,text/plain"
+          />
+        </label>
+        <div class="status" id="upload-status" aria-live="polite"></div>
+        <div class="modal-actions">
+          <button type="button" class="secondary" data-close="upload-modal">
+            Cancel</button
+          ><button class="primary" id="upload" type="submit">
+            Upload document
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="documents-modal">
+      <div class="modal-head">
+        <h2>Documents</h2>
+        <button class="close" data-close="documents-modal" aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="subtle">View and manage all uploaded documents.</p>
+        <div class="document-toolbar">
+          <label class="select-all-documents" for="select-all-documents">
+            <input id="select-all-documents" type="checkbox" /> Select all
+          </label>
+          <button
+            class="secondary delete-selected"
+            id="delete-selected"
+            type="button"
+            disabled
+          >
+            Delete selected
+          </button>
+        </div>
+        <div class="document-list" id="documents"></div>
+        <div class="status" id="document-status" aria-live="polite"></div>
+        <div class="modal-actions">
+          <button class="primary" id="open-upload">Upload document</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="viewer-modal">
+      <div class="modal-head">
+        <h2 id="viewer-title">Document</h2>
+        <button class="close" data-close="viewer-modal" aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="subtle" id="viewer-meta"></div>
+        <pre class="doc-content" id="viewer-content"></pre>
+      </div>
+    </dialog>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/marked/16.3.0/lib/marked.umd.min.js"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script src="/frontend/role_selector.js?v=14"></script>
+    <script src="/frontend/document_viewer.js"></script>
+  </body>
+</html>

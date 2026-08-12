@@ -1,0 +1,80 @@
+services:
+  payment-document-chatbot:
+    profiles: ["app"]
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      PORT: 8000
+      DATABASE_URL: postgresql://paydoc:paydoc@postgres:5432/paydoc
+      OPENSEARCH_URL: http://opensearch:9200
+      LOCAL_LLM_OPENAI_BASE_URL: http://llamacpp:8080/v1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      llamacpp:
+        condition: service_started
+
+  llamacpp:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    ports:
+      - "8080:8080"
+    volumes:
+      - llamacpp_hf_cache:/root/.cache/huggingface
+    command:
+      - -hf
+      - ${LLAMACPP_HF_REPO:-Qwen/Qwen3-1.7B-GGUF:Q8_0}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --alias
+      - ${LOCAL_LLM_MODEL:-qwen3-1.7b}
+      - -c
+      - ${LLAMACPP_CONTEXT_SIZE:-4096}
+      - -n
+      - ${LLAMACPP_PREDICT_TOKENS:-700}
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: paydoc
+      POSTGRES_USER: paydoc
+      POSTGRES_PASSWORD: paydoc
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paydoc -d paydoc"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  opensearch:
+    image: opensearchproject/opensearch:3.8.0
+    environment:
+      discovery.type: single-node
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+
+volumes:
+  postgres_data:
+  opensearch_data:
+  llamacpp_hf_cache:
